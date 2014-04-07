@@ -17,15 +17,18 @@
   [s]
   (= 1 (count s)))
 
+(def certain? singleton?)
+(def uncertain? (comp not certain?))
+
 (defn remove-certain
   "Given a sequence of sets, return a sequence of sets in the same order where,
    for each singleton set, the contents of that set has been removed from all
    other sets."
   [s]
-  (let [certain (filter singleton? s)
-        uncertain (remove singleton? s)
+  (let [certain (filter certain? s)
+        uncertain (remove certain? s)
         certain-set (apply set/union certain)
-        increase-certainty (fn [s] (if (singleton? s) s (set/difference s certain-set)))]
+        increase-certainty (fn [s] (if (certain? s) s (set/difference s certain-set)))]
     (map increase-certainty s)))
 
 (defn only-in-one-set
@@ -89,10 +92,38 @@
     #{n}))
 
 (defn create-board
-  "Convert a list and board width,height into the internal sudoku board representation"
+  "Convert a list and board width,height into the internal sudoku board representation."
   [w h board]
   {:pre [(= (* (* w h) (* w h)) (count board))]}
   (let [n (* w h)]
     (into {} (map (fn [k v] [k (to-square v n)])
                   (for [r (range n) c (range n)] [r c])
                   board))))
+
+;; Solving a sudoku board
+
+(defn reduce-keygroup
+  "Reduce the set of possibilities for each square referenced by a key in the keygroup
+   using a given reducing strategy"
+  [internal-board keygroup strategy]
+  (->> (for [k keygroup] (internal-board k))
+       (fixed strategy)
+       (map (fn [k v] [k v]) keygroup)
+       (into {})
+       (merge internal-board)))
+
+(defn reduce-board
+  "Reduce the set of possibilities for each sequare referenced by all of the keygroups
+   using a given reducing strategy. Goes through each keygroup sequentially."
+  [internal-board keygroups strategy]
+  (let [reduce-fns (map (fn [keygroup] #(reduce-keygroup % keygroup strategy)) keygroups)
+        full-reduce (apply comp reduce-fns)]
+    (full-reduce internal-board)))
+
+(defn first-uncertain
+  "Returns the key of first uncertain spot in a sudoku board. This is essentially arbitrary
+   as the map is unsorted. Fast so useful for solving a board. Returns nil if no such key."
+  [internal-board]
+  (->> (filter (comp uncertain? second) internal-board)
+       (first)
+       (first)))

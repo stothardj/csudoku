@@ -13,6 +13,22 @@
     (are [s] (not (singleton? s))
          [] [1 2 3] #{} #{1 2})))
 
+(deftest certain-test
+  (testing "Certain"
+    (are [s] (certain? s)
+         [1] '("Cake") #{3}))
+  (testing "Uncertain"
+    (are [s] (not (certain? s))
+         [] [1 2 3] #{} #{1 2})))
+
+(deftest uncertain-test
+  (testing "Certain"
+    (are [s] (not (uncertain? s))
+         [1] '("Cake") #{3}))
+  (testing "Uncertain"
+    (are [s] (uncertain? s)
+         [] [1 2 3] #{} #{1 2})))
+
 (deftest remove-certain-test
   (is (= [#{1 2} #{3 4}] (remove-certain [#{1 2} #{3 4}])))
   (is (= [#{2 3} #{1}] (remove-certain [#{1 2 3} #{1}]))))
@@ -75,3 +91,18 @@
                         0 0, 1 0, 0 0
                         0 0, 0 0, 0 5
                         5 4, 0 6, 0 0]))))
+
+(deftest reduce-keygroup-test
+  (is (= {:a 4 :b 4 :c 12 :d 9}
+         (reduce-keygroup {:a 5 :b 4 :c 12 :d 9}
+                          [:a :c]
+                          (fn [s] (map #(if (even? %) % (dec %)) s))))))
+
+(deftest reduce-board-test
+  (is (= {:a 4 :b 4 :c 12 :d 9}
+         (reduce-board {:a 5 :b 4 :c 13 :d 9}
+                       [[:a] [:c]]
+                       (fn [s] (map #(if (even? %) % (dec %)) s))))))
+
+(deftest first-uncertain-test
+  (is (= :c (first-uncertain {:a #{1} :b #{3} :c #{2 5}}))))
