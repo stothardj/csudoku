@@ -52,6 +52,8 @@
                        (if (empty? contained-uniques) ss contained-uniques)))]
     (map to-uniques s)))
 
+(def reducing-strategy (comp remove-certain certain-of-required))
+
 ;; A key group is a sequence of indices which have the sudoku invariants enforced on them
 
 (defn row-key-groups
@@ -74,6 +76,13 @@
                        r (range sr (+ sr h))
                        c (range sc (+ sc w))]
                    [r c]))))
+
+(defn all-key-groups
+  [w h]
+  (let [n (* w h)]
+    (concat (row-key-groups n)
+            (col-key-groups n)
+            (box-key-groups w h))))
 
 ;; Generating a sudoku board internal representation
 
@@ -127,3 +136,17 @@
   (->> (filter (comp uncertain? second) internal-board)
        (first)
        (first)))
+
+(defn split-board
+  "Split board at a given uncertain point. Returns two boards, one with that square
+   now certain and one with the remaining possibilities."
+  [internal-board uncertain-key]
+  (let [uncertain-value (internal-board uncertain-key)
+        [one others] ((juxt first rest) uncertain-value)]
+    [(assoc internal-board uncertain-key #{one})
+     (assoc internal-board uncertain-key (into #{} others))]))
+
+(defn board-solved?
+  "Returns true if the sudoku board is solved."
+  [internal-board]
+  (every? certain? (vals internal-board)))

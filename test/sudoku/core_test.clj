@@ -1,6 +1,7 @@
 (ns sudoku.core-test
   (:require [clojure.test :refer :all]
-            [sudoku.core :refer :all]))
+            [sudoku.core :refer :all]
+            [clojure.set :as set]))
 
 (deftest fixed-test
   (is (= 10 (fixed (fn [x] (if (< x 10) (+ x 1) x)) 3))))
@@ -66,6 +67,32 @@
            [[3 4] [3 5] [4 4] [4 5] [5 4] [5 5]] ]
          (box-key-groups 2 3))))
 
+;; 2x2 board:
+
+;; 00 01,02 03
+;; 10 11,12 13
+;; ,,,,,,,,,,,
+;; 20 21,22 23
+;; 30 31,32 33
+(deftest all-key-groups-test
+  (is (= [
+          ;; Rows
+          [[0 0] [0 1] [0 2] [0 3]]
+          [[1 0] [1 1] [1 2] [1 3]]
+          [[2 0] [2 1] [2 2] [2 3]]
+          [[3 0] [3 1] [3 2] [3 3]]
+          ;; Cols
+          [[0 0] [1 0] [2 0] [3 0]]
+          [[0 1] [1 1] [2 1] [3 1]]
+          [[0 2] [1 2] [2 2] [3 2]]
+          [[0 3] [1 3] [2 3] [3 3]]
+          ;; Boxes
+          [[0 0] [0 1] [1 0] [1 1]]
+          [[0 2] [0 3] [1 2] [1 3]]
+          [[2 0] [2 1] [3 0] [3 1]]
+          [[2 2] [2 3] [3 2] [3 3]] ]
+         (all-key-groups 2 2))))
+
 (deftest new-square-test
   (is (= #{1 2 3} (new-square 3))))
 
@@ -105,4 +132,17 @@
                        (fn [s] (map #(if (even? %) % (dec %)) s))))))
 
 (deftest first-uncertain-test
-  (is (= :c (first-uncertain {:a #{1} :b #{3} :c #{2 5}}))))
+  (is (= :c (first-uncertain {:a #{1} :b #{3} :c #{2 5}})))
+  (is nil? (first-uncertain {:a #{1} :c #{3}})))
+
+(deftest split-board-test
+  (let [board {:a #{1 2 3} :b #{4 5 6} :c #{7 8}}
+        [one-board other-board] (split-board board :b)]
+    (is (= (dissoc board :b) (dissoc one-board :b) (dissoc other-board :b)))
+    (is (certain? (:b one-board)))
+    (is (= (:b board) (set/union (:b one-board) (:b other-board))))
+    (is (= (count (:b board)) (+ (count (:b one-board)) (count (:b other-board)))))))
+
+(deftest board-solved-test
+  (is (board-solved? {:a #{1} :b #{2}}))
+  (is (not (board-solved? {:a #{1 2} :b #{2}}))))
