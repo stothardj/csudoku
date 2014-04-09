@@ -150,3 +150,33 @@
   "Returns true if the sudoku board is solved."
   [internal-board]
   (every? certain? (vals internal-board)))
+
+(defn solve-board
+  "Solves a sudoku board, returning a sequence of all possible solutions in no particular
+   order."
+  [w h internal-board]
+  (let [keygroups (all-key-groups w h)]
+    (letfn [(solve-step-single [board]
+              (let [reduced (fixed #(reduce-board % keygroups reducing-strategy) board)]
+                (if (board-solved? reduced)
+                  [reduced]
+                  (split-board reduced (first-uncertain reduced)))))
+            (solve-step [boards]
+              (mapcat solve-step-single boards))]
+      (->> (iterate solve-step [internal-board])
+           (filter (partial every? board-solved?))
+           (first)))))
+
+(defn print-board
+  "Prints a formatted board to stdout"
+  [w h internal-board]
+  (let [n (* w h)]
+    (letfn [(square-display [val]
+              (if (certain? val)
+                (first val)
+                "?"))
+            (print-row [r]
+              (apply println (for [c (range n)]
+                           (square-display (internal-board [r c])))))]
+      (doseq [r (range n)]
+        (print-row r)))))
