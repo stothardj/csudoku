@@ -147,6 +147,10 @@
   (is (board-solved? {:a #{1} :b #{2}}))
   (is (not (board-solved? {:a #{1 2} :b #{2}}))))
 
+(deftest board-invalid-test
+  (is (board-invalid? {:a #{1} :b #{}}))
+  (is (not (board-invalid? {:a #{1} :b #{2 3}}))))
+
 ;; Problem (3x3 board. 0 represent open)
 
 ;; 0 0 5 0 1 2 0 4 7

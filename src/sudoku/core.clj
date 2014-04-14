@@ -137,19 +137,26 @@
        (first)
        (first)))
 
-(defn split-board
-  "Split board at a given uncertain point. Returns two boards, one with that square
-   now certain and one with the remaining possibilities."
-  [internal-board uncertain-key]
-  (let [uncertain-value (internal-board uncertain-key)
-        [one others] ((juxt first rest) uncertain-value)]
-    [(assoc internal-board uncertain-key #{one})
-     (assoc internal-board uncertain-key (into #{} others))]))
-
 (defn board-solved?
   "Returns true if the sudoku board is solved."
   [internal-board]
   (every? certain? (vals internal-board)))
+
+(defn board-invalid?
+  "Returns true if a sudoku square in the board has no possibilities"
+  [internal-board]
+  (some empty? (vals internal-board)))
+
+(defn split-board
+  "Split board at a given uncertain point. Returns two boards, one with that square
+   now certain and one with the remaining possibilities."
+  [internal-board uncertain-key]
+  {:pre [(not (board-invalid? internal-board))
+         (not (board-solved? internal-board))]}
+  (let [uncertain-value (internal-board uncertain-key)
+        [one others] ((juxt first rest) uncertain-value)]
+    [(assoc internal-board uncertain-key #{one})
+     (assoc internal-board uncertain-key (into #{} others))]))
 
 (defn solve-board
   "Solves a sudoku board, returning a sequence of all possible solutions in no particular
@@ -158,14 +165,17 @@
   (let [keygroups (all-key-groups w h)]
     (letfn [(solve-step-single [board]
               (let [reduced (fixed #(reduce-board % keygroups reducing-strategy) board)]
-                (if (board-solved? reduced)
-                  [reduced]
-                  (split-board reduced (first-uncertain reduced)))))
+                (cond
+                 (board-invalid? reduced) []
+                 (board-solved? reduced) [reduced]
+                 :else (split-board reduced (first-uncertain reduced)))))
             (solve-step [boards]
-              (mapcat solve-step-single boards))]
-      (->> (iterate solve-step [internal-board])
-           (filter (partial every? board-solved?))
-           (first)))))
+              (let [reduced-boards (mapcat solve-step-single boards)
+                    [solved unsolved] ((juxt filter remove) board-solved? reduced-boards)]
+                (if (empty? unsolved)
+                  solved
+                  (concat solved (lazy-seq (solve-step unsolved))))))]
+      (solve-step [internal-board]))))
 
 (defn print-board
   "Prints a formatted board to stdout"
