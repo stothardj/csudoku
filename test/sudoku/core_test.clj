@@ -214,3 +214,14 @@
                             0 0 0 0 0 0 0 0 0
                             0 0 0 0 0 0 0 0 0
                             ]) (empty-board 3 3))))
+
+(deftest generate-solved-board-test
+  (let [solved-board (generate-solved-board 3 3)]
+    (is (board-solved? solved-board))
+    (is (= 81 (count solved-board)))))
+
+(deftest generate-board-test
+  (let [unsolved-board (generate-board 3 3)]
+    (is (not (board-solved? unsolved-board)))
+    (is (not (board-invalid? unsolved-board)))
+    (is (= 1 (count (solve-board 3 3 unsolved-board))))))
