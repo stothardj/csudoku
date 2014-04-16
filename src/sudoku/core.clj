@@ -129,13 +129,24 @@
         full-reduce (apply comp reduce-fns)]
     (full-reduce internal-board)))
 
+(defn- choose-uncertain
+  "Returns the key of an uncertain using choose strategy to select the entry to use"
+  [internal-board choose-strategy]
+  (->> (filter (comp uncertain? second) internal-board)
+       (choose-strategy)
+       (first)))
+
 (defn first-uncertain
-  "Returns the key of first uncertain spot in a sudoku board. This is essentially arbitrary
+  "Returns the key of first uncertain spot found in a sudoku board. This is arbitrary
    as the map is unsorted. Fast so useful for solving a board. Returns nil if no such key."
   [internal-board]
-  (->> (filter (comp uncertain? second) internal-board)
-       (first)
-       (first)))
+  (choose-uncertain internal-board first))
+
+(defn random-uncertain
+  "Returns the key of a random uncertain spot in a sudoku board. This is really random
+   and therefore useful for generating boards. Returns nil if no such key."
+  [internal-board]
+  (choose-uncertain internal-board #(if (empty? %) nil (rand-nth %))))
 
 (defn board-solved?
   "Returns true if the sudoku board is solved."
@@ -158,6 +169,20 @@
     [(assoc internal-board uncertain-key #{one})
      (assoc internal-board uncertain-key (into #{} others))]))
 
+(defn print-board
+  "Prints a formatted board to stdout"
+  [w h internal-board]
+  (let [n (* w h)]
+    (letfn [(square-display [val]
+              (if (certain? val)
+                (first val)
+                "?"))
+            (print-row [r]
+              (apply println (for [c (range n)]
+                           (square-display (internal-board [r c])))))]
+      (doseq [r (range n)]
+        (print-row r)))))
+
 (defn solve-board
   "Solves a sudoku board, returning a sequence of all possible solutions in no particular
    order."
@@ -177,16 +202,39 @@
                   (concat solved (lazy-seq (solve-step unsolved))))))]
       (solve-step [internal-board]))))
 
-(defn print-board
-  "Prints a formatted board to stdout"
-  [w h internal-board]
+(defn empty-board [w h]
+  "Returns an empty board of given dimensions in internal board representation"
   (let [n (* w h)]
-    (letfn [(square-display [val]
-              (if (certain? val)
-                (first val)
-                "?"))
-            (print-row [r]
-              (apply println (for [c (range n)]
-                           (square-display (internal-board [r c])))))]
-      (doseq [r (range n)]
-        (print-row r)))))
+    (create-board w h (repeat (* n n) 0))))
+
+(defn generate-solved-board [w h]
+  "Returns a random solved board of given dimensions in internal board representation"
+  [w h]
+  (let [keygroups (all-key-groups w h)]
+    (letfn [(generate-step-single [board]
+              (let [reduced (fixed #(reduce-board % keygroups reducing-strategy) board)]
+                (cond (board-invalid? reduced) []
+                      (board-solved? reduced) [reduced]
+                      :else (split-board reduced (random-uncertain reduced)))))]
+      (->> (iterate #(mapcat generate-step-single %) [(empty-board w h)])
+           (filter (comp board-solved? first))
+           (first)
+           (first)))))
+
+(defn generate-board [w h]
+  "Generates an unsolved board with open squares in internal board representation"
+  [w h]
+  (let [n (* w h)
+        empty-square (new-square n)
+        holes (shuffle (for [r (range n) c (range n)] [r c]))]
+    (letfn [(still-acceptable? [board] (= 1 (count (take 2 (solve-board w h board)))))
+            (punch-hole [board index]
+              (let [potential (assoc board index empty-square)]
+                (if (still-acceptable? potential)
+                  potential
+                  board)))
+            (punch-holes [board indices]
+              ((apply comp
+                      (map #(fn [board] (punch-hole board %)) indices))
+               board))]
+      (punch-holes (generate-solved-board w h) holes))))

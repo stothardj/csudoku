@@ -135,6 +135,10 @@
   (is (= :c (first-uncertain {:a #{1} :b #{3} :c #{2 5}})))
   (is nil? (first-uncertain {:a #{1} :c #{3}})))
 
+(deftest random-uncertain-test
+  (is (= :c (random-uncertain {:a #{1} :b #{3} :c #{2 5}})))
+  (is nil? (random-uncertain {:a #{1} :c #{3}})))
+
 (deftest split-board-test
   (let [board {:a #{1 2 3} :b #{4 5 6} :c #{7 8}}
         [one-board other-board] (split-board board :b)]
@@ -197,3 +201,16 @@
                                        1 0 2 4 9 0 7 5 0
                                        5 8 0 0 0 0 4 0 0
                                        0 4 0 8 7 0 2 1 6])))))
+
+(deftest empty-board-test
+  (is (= (create-board 3 3 [
+                            0 0 0 0 0 0 0 0 0
+                            0 0 0 0 0 0 0 0 0
+                            0 0 0 0 0 0 0 0 0
+                            0 0 0 0 0 0 0 0 0
+                            0 0 0 0 0 0 0 0 0
+                            0 0 0 0 0 0 0 0 0
+                            0 0 0 0 0 0 0 0 0
+                            0 0 0 0 0 0 0 0 0
+                            0 0 0 0 0 0 0 0 0
+                            ]) (empty-board 3 3))))
