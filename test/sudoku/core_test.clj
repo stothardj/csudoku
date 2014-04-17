@@ -100,6 +100,10 @@
   (is (= #{1 2 3} (to-square 0 3)))
   (is (= #{4} (to-square 4 4))))
 
+(deftest from-square-test
+  (is (= 0 (from-square #{1 2 3})))
+  (is (= 3 (from-square #{3}))))
+
 (deftest create-board-test
   (is (=
         (let [o #{1 2 3 4 5 6}]
@@ -118,6 +122,16 @@
                         0 0, 1 0, 0 0
                         0 0, 0 0, 0 5
                         5 4, 0 6, 0 0]))))
+
+(deftest board-to-seq-test
+  (let [board [0 0, 0 0, 2 0
+               1 0, 0 3, 0 0
+               0 2, 0 5, 0 0
+               
+               0 0, 1 0, 0 0
+               0 0, 0 0, 0 5
+               5 4, 0 6, 0 0]]
+    (is (= board (board-to-seq 2 3 (create-board 2 3 board))))))
 
 (deftest reduce-keygroup-test
   (is (= {:a 4 :b 4 :c 12 :d 9}

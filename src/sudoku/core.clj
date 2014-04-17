@@ -100,6 +100,12 @@
     (new-square board-size)
     #{n}))
 
+(defn from-square
+  "Converts a set in the internal board representing a set of possibilities into
+   a number, where 0 represents an empty square."
+  [square]
+  (if (certain? square) (first square) 0))
+
 (defn create-board
   "Convert a list and board width,height into the internal sudoku board representation."
   [w h board]
@@ -108,6 +114,11 @@
     (into {} (map (fn [k v] [k (to-square v n)])
                   (for [r (range n) c (range n)] [r c])
                   board))))
+
+(defn board-to-seq
+  "Convert an internal board representation to a seq, exactly as passed to create board."
+  [w h internal-board]
+  (let [n (* w h)] (for [r (range n) c (range n)] (from-square (internal-board [r c])))))
 
 ;; Solving a sudoku board
 
