@@ -27,6 +27,7 @@ The width and height refer to the width and height of a single "box" of the sudo
 a standard sized sudoku board has a width of 3 and a height of 3. It looks something like the
 below where the dot represents a sudoku square.
 
+```
 - - - - - - - - - - - - - 
 | . . . | . . . | . . . | 
 | . . . | . . . | . . . | 
@@ -40,9 +41,11 @@ below where the dot represents a sudoku square.
 | . . . | . . . | . . . | 
 | . . . | . . . | . . . | 
 - - - - - - - - - - - - - 
+```
 
 A board with a width of 3 and height of 2 looks like:
 
+```
 - - - - - - - - -
 | . . . | . . . |
 | . . . | . . . |
@@ -53,9 +56,11 @@ A board with a width of 3 and height of 2 looks like:
 | . . . | . . . |
 | . . . | . . . |
 - - - - - - - - -
+```
 
 A board with a width of 2 and height of 3 looks like:
 
+```
 - - - - - - - - - -
 | . . | . . | . . | 
 | . . | . . | . . | 
@@ -65,6 +70,7 @@ A board with a width of 2 and height of 3 looks like:
 | . . | . . | . . | 
 | . . | . . | . . | 
 - - - - - - - - - -
+```
 
 From the above we observe that a sudoku board is always square, even in the case
 where each box isn't. A board with width w and height h has a total of (w * h)^2
