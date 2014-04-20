@@ -244,12 +244,13 @@
   ([w h internal-board] (solve-board-bfs w h internal-board))
   ([w h internal-board max-results]
      (let [n (* w h)
+           n2 (* n n)
            keygroups (all-key-groups w h)
            reduced (fixed #(reduce-board % keygroups reducing-strategy) internal-board)
            num-certain (count (filter certain? (vals reduced)))
-           num-uncertain (- (* n n) num-certain)]
-       (cond (= num-uncertain 0) reduced
-             (< num-certain 3) (solve-board-dfs w h reduced max-results)
+           num-uncertain (- n2 num-certain)]
+       (cond (= num-uncertain 0) [reduced]
+             (> (/ n2 num-certain) 3) (solve-board-dfs w h reduced max-results)
              :else (solve-board-bfs w h reduced max-results)))))
 
 (defn empty-board [w h]

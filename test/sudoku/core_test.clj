@@ -240,6 +240,30 @@
                                        5 8 0 0 0 0 4 0 0
                                        0 4 0 8 7 0 2 1 6])))))
 
+(deftest solve-board-test
+  (is (=
+       [(create-board 3 3 [
+                          6 9 5 3 1 2 8 4 7
+                          8 3 4 6 5 7 9 2 1
+                          7 2 1 9 8 4 3 6 5
+                          3 1 9 7 4 6 5 8 2
+                          2 5 8 1 3 9 6 7 4
+                          4 7 6 5 2 8 1 9 3
+                          1 6 2 4 9 3 7 5 8
+                          5 8 7 2 6 1 4 3 9
+                          9 4 3 8 7 5 2 1 6])]
+       (solve-board 3 3
+                    (create-board 3 3 [
+                                       0 0 5 0 1 2 0 4 7
+                                       8 3 0 6 0 0 0 0 0
+                                       0 2 1 9 0 4 3 6 5
+                                       3 1 0 0 0 6 5 0 2
+                                       0 5 8 1 0 0 0 0 0
+                                       4 0 6 5 2 8 0 9 0
+                                       1 0 2 4 9 0 7 5 0
+                                       5 8 0 0 0 0 4 0 0
+                                       0 4 0 8 7 0 2 1 6])))))
+
 (deftest empty-board-test
   (is (= (create-board 3 3 [
                             0 0 0 0 0 0 0 0 0
@@ -257,6 +281,10 @@
   (let [solved-board (generate-solved-board 3 3)]
     (is (board-solved? solved-board))
     (is (= 81 (count solved-board)))))
+
+(deftest has-one-solution-test
+  (is (has-one-solution? 3 3 (generate-solved-board 3 3)))
+  (is (not (has-one-solution? 3 3 (empty-board 3 3)))))
 
 (deftest generate-board-test
   (let [unsolved-board (generate-board 3 3)]
