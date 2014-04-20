@@ -1,5 +1,6 @@
 (ns sudoku.core
-  (:require [clojure.set :as set]))
+  (:require [clojure.set :as set]
+            [clojure.math.numeric-tower :as math]))
 
 (defn fixed
   "Apply f to a until results stop changing"
@@ -169,17 +170,6 @@
   [internal-board]
   (some empty? (vals internal-board)))
 
-(defn split-board
-  "Split board at a given uncertain point. Returns two boards, one with that square
-   now certain and one with the remaining possibilities."
-  [internal-board uncertain-key]
-  {:pre [(not (board-invalid? internal-board))
-         (not (board-solved? internal-board))]}
-  (let [uncertain-value (internal-board uncertain-key)
-        [one others] ((juxt first rest) uncertain-value)]
-    [(assoc internal-board uncertain-key #{one})
-     (assoc internal-board uncertain-key (into #{} others))]))
-
 (defn print-board
   "Prints a formatted board to stdout"
   [w h internal-board]
@@ -194,24 +184,73 @@
       (doseq [r (range n)]
         (print-row r)))))
 
-(defn solve-board
-  "Solves a sudoku board, returning a sequence of all possible solutions in no particular
-   order."
-  [w h internal-board]
-  (let [keygroups (all-key-groups w h)]
-    (letfn [(solve-step-single [board]
+(defn split-board
+  "Split board at a given uncertain point. Returns two boards, one with that square
+   now certain and one with the remaining possibilities."
+  [internal-board uncertain-key]
+  {:pre [(not (board-invalid? internal-board))
+         (not (board-solved? internal-board))]}
+  (let [uncertain-value (internal-board uncertain-key)
+        [one others] ((juxt first rest) uncertain-value)]
+    [(assoc internal-board uncertain-key #{one})
+     (assoc internal-board uncertain-key (into #{} others))]))
+
+(defn- solve-step-single [keygroups board]
+  "Returns 0 to 2 boards. If 0 boards the board was unsolveable. If 1 board it is solved.
+   If two boards they aren't solved yet and it's up to the caller how to proceed."
               (let [reduced (fixed #(reduce-board % keygroups reducing-strategy) board)]
                 (cond
                  (board-invalid? reduced) []
                  (board-solved? reduced) [reduced]
                  :else (split-board reduced (first-uncertain reduced)))))
-            (solve-step [boards]
-              (let [reduced-boards (mapcat solve-step-single boards)
-                    [solved unsolved] ((juxt filter remove) board-solved? reduced-boards)]
-                (if (empty? unsolved)
-                  solved
-                  (concat solved (lazy-seq (solve-step unsolved))))))]
-      (solve-step [internal-board]))))
+
+(defn solve-board-bfs
+  "Solves a sudoku board, returning a lazy sequence of all possible solutions in no particular
+   order. Takes optional argument of max results you care about so it will stop early."
+  ([w h internal-board max-results] (take max-results (solve-board-bfs w h internal-board)))
+  ([w h internal-board]
+     (let [keygroups (all-key-groups w h)
+           solve-step-partial (partial solve-step-single keygroups)]
+       (letfn [(solve-step [boards]
+                 (let [reduced-boards (mapcat solve-step-partial boards)
+                       [solved unsolved] ((juxt filter remove) board-solved? reduced-boards)]
+                   (if (empty? unsolved)
+                     solved
+                     (concat solved (lazy-seq (solve-step unsolved))))))]
+         (solve-step [internal-board])))))
+
+(defn solve-board-dfs
+  "Solves a sudoku board, returning an eager sequence of all possible solutions in no particular
+   order. Takes optional argument of max results you care about so it will stop early."
+  ([w h internal-board] (solve-board-dfs w h internal-board (math/expt 2 (math/expt (* w h) 2))))
+  ([w h internal-board max-results]
+     (let [keygroups (all-key-groups w h)
+           solve-step-partial (partial solve-step-single keygroups)]
+       (letfn [(solve-step [accum board]
+                 (cond (>= (count accum) max-results) accum
+                       (board-invalid? board) accum
+                       (board-solved? board) (conj accum board)
+                       :else (let [reduced-boards (solve-step-partial board)]
+                               (case (count reduced-boards)
+                                 0 accum
+                                 1 (conj accum (first reduced-boards))
+                                 2 (recur
+                                    (solve-step accum (first reduced-boards))
+                                    (second reduced-boards))))))]
+         (solve-step [] internal-board)))))
+
+;; Selects most likely to be useful solving method (dirty heuristics)
+(defn solve-board
+  ([w h internal-board] (solve-board-bfs w h internal-board))
+  ([w h internal-board max-results]
+     (let [n (* w h)
+           keygroups (all-key-groups w h)
+           reduced (fixed #(reduce-board % keygroups reducing-strategy) internal-board)
+           num-certain (count (filter certain? (vals reduced)))
+           num-uncertain (- (* n n) num-certain)]
+       (cond (= num-uncertain 0) reduced
+             (< num-certain 3) (solve-board-dfs w h reduced max-results)
+             :else (solve-board-bfs w h reduced max-results)))))
 
 (defn empty-board [w h]
   "Returns an empty board of given dimensions in internal board representation"
@@ -232,16 +271,22 @@
            (first)
            (first)))))
 
-(defn generate-board [w h]
-  "Generates an unsolved board with open squares in internal board representation"
+(defn has-one-solution?
+  "Returns true if the internal board has only one solution"
+  [w h board] (= 1 (count (solve-board w h board 2))))
+
+(defn generate-board-decremental [w h]
+  "Generates an unsolved board with open squares in internal board representation. This
+   method guarentees that if you were to remove any of the numbers from the board there
+   would no longer be only one solution. Therefore this generates difficult boards."
   [w h]
   (let [n (* w h)
         empty-square (new-square n)
-        holes (shuffle (for [r (range n) c (range n)] [r c]))]
-    (letfn [(still-acceptable? [board] (= 1 (count (take 2 (solve-board w h board)))))
-            (punch-hole [board index]
+        holes (shuffle (for [r (range n) c (range n)] [r c]))
+        one-solution? (partial has-one-solution? w h)]
+    (letfn [(punch-hole [board index]
               (let [potential (assoc board index empty-square)]
-                (if (still-acceptable? potential)
+                (if (one-solution? potential)
                   potential
                   board)))
             (punch-holes [board indices]
@@ -249,3 +294,27 @@
                       (map #(fn [board] (punch-hole board %)) indices))
                board))]
       (punch-holes (generate-solved-board w h) holes))))
+
+(defn generate-board-additive [w h]
+  "Generates an unsolved board with open squares in internal board representation. This
+   method guarentees that if you were to remove the most recently placed spot there would
+   be more than one solution. However, it is possible that removing a different spot would
+   still result in one solution. Therefore this generates easier boards than the decremental
+   version."
+  (let [n (* w h)
+        pop-order (shuffle (for [r (range n) c (range n)] [r c]))
+        solved-board (generate-solved-board w h)
+        one-solution? (partial has-one-solution? w h)]
+    (letfn [(slow-populate [indices board]
+              (if (empty? indices) nil
+                  (let [index (first indices)
+                        v (solved-board index)
+                        populated (assoc board index v)]
+                    (cons populated (lazy-seq (slow-populate (rest indices) populated))))))]
+      (->> (empty-board w h)
+           (slow-populate pop-order)
+           (filter one-solution?)
+           (first)))))
+
+;; Recommended as it generates harder boards and turns out to be faster too
+(def generate-board generate-board-decremental)
